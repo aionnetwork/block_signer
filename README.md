@@ -12,7 +12,7 @@ The staker can be used directly from the terminal by launching
 
 The staker takes the following arguments when launched:
 
-1. **(required)** the 32-bit private key of a rich Aion account without `0x`. 
+1. **(required)** the private key of the signing address of the staker. 
 
 2. *(optional)*) the IP address of a Unity-enabled node accepting RPC requests. If this argument isn't provided, `127.0.0.1` is used as default.
 
