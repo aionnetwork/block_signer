@@ -1,6 +1,7 @@
 package org.aion.staker;
 
 import main.MessageSigner;
+import org.aion.harness.kernel.Address;
 import org.aion.harness.kernel.PrivateKey;
 import org.aion.harness.main.RPC;
 import org.aion.util.conversions.Hex;
@@ -15,11 +16,12 @@ public class ExternalStaker {
 
     private static PrivateKey stakerPrivateKey;
     private static RPC rpc;
+    private static Address coinbase;
     
     public static void main(String[] args) throws InvalidKeySpecException, InterruptedException {
         
-        if (args.length < 1) {
-            System.err.println("Usage: <signingAddressPrivateKey> <ip:127.0.0.1> <port:8545>");
+        if (args.length < 2) {
+            System.err.println("Usage: <signingAddressPrivateKey> <coinbaseAddress> <ip:127.0.0.1> <port:8545>");
             return;
         }
         
@@ -45,14 +47,26 @@ public class ExternalStaker {
 
         stakerPrivateKey = PrivateKey.fromBytes(privateKeyBytes);
 
-        String ip = "127.0.0.1", port = "8545";
+        String coinbaseString = args[1];
 
-        if (args.length > 1) {
-            ip = args[1];
+        if (null == coinbaseString) {
+            throw new IllegalArgumentException("null coinbase address provided");
         }
 
+        if (coinbaseString.startsWith("0x")) {
+            coinbaseString = coinbaseString.substring(2);
+        }
+
+        coinbase = new Address(Hex.decode(coinbaseString));
+        
+        String ip = "127.0.0.1", port = "8545";
+
         if (args.length > 2) {
-            port = args[2];
+            ip = args[2];
+        }
+
+        if (args.length > 3) {
+            port = args[3];
         }
 
         rpc = new RPC(ip, port);
@@ -75,7 +89,7 @@ public class ExternalStaker {
     // Returns the seed of the newly created block
     public static byte[] createAndSendStakingBlock() throws InterruptedException, InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         byte[] nextSeed = getNextSeed();
-        byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes());
+        byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes(), coinbase);
         byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
         rpc.submitSignature(signature, blockHashToSign);
         return nextSeed;
