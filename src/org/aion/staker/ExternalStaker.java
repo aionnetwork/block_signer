@@ -1,8 +1,11 @@
 package org.aion.staker;
 
 import main.MessageSigner;
+import org.aion.avm.userlib.abi.ABIDecoder;
+import org.aion.avm.userlib.abi.ABIStreamingEncoder;
 import org.aion.harness.kernel.Address;
 import org.aion.harness.kernel.PrivateKey;
+import org.aion.harness.kernel.Transaction;
 import org.aion.harness.main.RPC;
 import org.aion.util.conversions.Hex;
 
@@ -18,10 +21,12 @@ public class ExternalStaker {
     private static RPC rpc;
     private static Address coinbase;
     
+    private static String stakerRegistryAddress = "a056337bb14e818f3f53e13ab0d93b6539aa570cba91ce65c716058241989be9";
+    
     public static void main(String[] args) throws InvalidKeySpecException, InterruptedException {
         
-        if (args.length < 2) {
-            System.err.println("Usage: <signingAddressPrivateKey> <coinbaseAddress> <ip:127.0.0.1> <port:8545>");
+        if (args.length < 1) {
+            System.err.println("Usage: <signingAddressPrivateKey> <coinbaseAddress (or \"default\"> <ip:127.0.0.1> <port:8545>");
             return;
         }
         
@@ -46,18 +51,6 @@ public class ExternalStaker {
         }
 
         stakerPrivateKey = PrivateKey.fromBytes(privateKeyBytes);
-
-        String coinbaseString = args[1];
-
-        if (null == coinbaseString) {
-            throw new IllegalArgumentException("null coinbase address provided");
-        }
-
-        if (coinbaseString.startsWith("0x")) {
-            coinbaseString = coinbaseString.substring(2);
-        }
-
-        coinbase = new Address(Hex.decode(coinbaseString));
         
         String ip = "127.0.0.1", port = "8545";
 
@@ -70,8 +63,34 @@ public class ExternalStaker {
         }
 
         rpc = new RPC(ip, port);
+
+        String coinbaseString = args[1];
+
+        if (null == coinbaseString) {
+            throw new IllegalArgumentException("null coinbase address provided");
+        }
         
-        System.out.println("Producing blocks now");
+        if (coinbaseString.equals("default")) {
+            System.out.println("Retrieving coinbase from the Staker Registry at " + stakerRegistryAddress + "...");
+            byte[] callData = new ABIStreamingEncoder()
+                    .encodeOneString("getCoinbaseAddress")
+                    .encodeOneAddress(new avm.Address(stakerPrivateKey.getAddress().getAddressBytes()))
+                    .toBytes();
+            
+            Transaction callTx = new Transaction(new Address(Hex.decode(stakerRegistryAddress)), callData);
+            byte[] returnValue = rpc.call(callTx);
+            coinbase = new Address(new ABIDecoder(returnValue).decodeOneAddress().toByteArray());
+            System.out.println("Using coinbase " + coinbase);
+        } else {
+
+            if (coinbaseString.startsWith("0x")) {
+                coinbaseString = coinbaseString.substring(2);
+            }
+
+            coinbase = new Address(Hex.decode(coinbaseString));
+        }
+        
+        System.out.println("Producing blocks now..");
         
         while(true) {
             try {
