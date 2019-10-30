@@ -15,7 +15,7 @@ import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 
-public class ExternalStaker {
+public class BlockSigner {
 
     private static PrivateKey stakerPrivateKey;
     private static RPC rpc;
@@ -94,7 +94,7 @@ public class ExternalStaker {
             try {
                 createAndSendStakingBlock();
             } catch (Exception e) {
-                System.out.println("External Staker caught exception " + e.getMessage());
+                System.out.println("Block Signer caught exception " + e.getMessage());
                 System.out.println("Sleeping for 5 seconds, then resuming normal behaviour");
                 Thread.sleep(4000);
             }

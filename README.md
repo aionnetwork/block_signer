@@ -1,18 +1,18 @@
-# External Staker
+# Block Signer
 
-This is an external staker designed to be used with Aion's Unity Hybrid Consensus Protocol. The staker can be used to interact with a Unity-enabled node over RPC.
+This is a block signer designed to be used with Aion's Unity Hybrid Consensus Protocol. The signer can be used to interact with a Unity-enabled node over RPC.
 
-The staker is largely built on top of the RPC functionality provided by the [Node Test Harness](https://github.com/aionnetwork/node_test_harness "Node Test Harness").
+The signer is largely built on top of the RPC functionality provided by the [Node Test Harness](https://github.com/aionnetwork/node_test_harness "Node Test Harness").
 
-# Launching the staker
+# Launching the signer
 
-The staker can be used directly from the terminal by launching
+The signer can be used directly from the terminal by launching
 
-`java -jar external_staker.jar <args>`
+`java -jar block_signer.jar <args>`
 
-The staker takes the following arguments when launched:
+The signer takes the following arguments when launched:
 
-1. **(required)** the private key of the signing address of the staker. 
+1. **(required)** the private key of the signing address of the registered staker. 
 
 1. **(required)** the identity address of the staker. 
 
@@ -22,4 +22,4 @@ The staker takes the following arguments when launched:
 
 # Behaviour
 
-Once launched, the staker repeatedly queries the node over RPC, and submits signed staking blocks. Note that it aggressively sends a signed block as soon as it produces it; the nodes must reject future blocks if they want to.
+Once launched, the signer repeatedly queries the node over RPC, and submits signed staking blocks. Note that it aggressively sends a signed block as soon as it produces it; the nodes must reject future blocks if they want to.
