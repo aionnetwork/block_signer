@@ -1,6 +1,7 @@
 package org.aion.staker.chain;
 
 import com.google.gson.JsonParser;
+import org.aion.staker.utils.Logger;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
@@ -9,9 +10,11 @@ import org.apache.commons.codec.binary.Hex;
  */
 public class RPC {
     private final RpcCaller rpc;
+    private Logger logger;
 
-    public RPC(String ip, String port) {
+    public RPC(String ip, String port, Logger logger) {
         this.rpc = new RpcCaller(ip, port);
+        this.logger = logger;
     }
 
     /**
@@ -63,9 +66,9 @@ public class RPC {
     private String sendCall(RpcMethod method, String params) throws InterruptedException {
         String payload = RpcPayload.generatePayload(method, params);
 
-        System.out.println(method.getMethod() + " payload: " + payload);
+        logger.logVerbose(method.getMethod() + " payload: " + payload);
         InternalRpcResult response = rpc.call(payload, false);
-        System.out.println(method.getMethod() + " response: " + response.toString());
+        logger.logVerbose(method.getMethod() + " response: " + response.toString());
 
         return (response.output != null) ?
                 new JsonParser().parse(response.output).getAsJsonObject().get("result").getAsString() : null;

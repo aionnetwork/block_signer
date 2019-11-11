@@ -13,7 +13,7 @@ The signer can be used directly from the terminal either by passing in the argum
 
 **Usage:**
 
-`java -jar block_signer.jar <signingAddressPrivateKey> <identityAddress> <networkName> <ip> <port>`
+`java -jar block_signer.jar <signingAddressPrivateKey> <identityAddress> <networkName> <ip> <port> <verboseLoggingEnabled>`
 
 The signer takes the following arguments when launched:
 
@@ -26,6 +26,9 @@ The signer takes the following arguments when launched:
 4. *(optional)* the IP address of a Unity-enabled node accepting RPC requests. If this argument isn't provided, `127.0.0.1` is used as default.
 
 5. *(optional)* the port on which this node is accepting RPC requests. If this argument isn't provided, `8545` is used as default.
+
+6. *(optional)* enable or disable verbose logging level. If this argument isn't provided, verbose logging is disabled by default. 
+If verbose logging is enabled, rpc request and response messages are printed.
 
 ### Option 2: Config file
 **Usage:**

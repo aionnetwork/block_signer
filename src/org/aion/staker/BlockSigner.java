@@ -6,6 +6,7 @@ import org.aion.avm.userlib.abi.ABIDecoder;
 import org.aion.avm.userlib.abi.ABIStreamingEncoder;
 import org.aion.staker.chain.RPC;
 import org.aion.staker.chain.Transaction;
+import org.aion.staker.utils.Logger;
 import org.aion.staker.utils.PrivateKey;
 import org.aion.util.conversions.Hex;
 
@@ -24,6 +25,8 @@ public class BlockSigner {
     private static final Address STAKER_REGISTRY_AMITY_ADDRESS = new Address(Hex.decode("a056337bb14e818f3f53e13ab0d93b6539aa570cba91ce65c716058241989be9"));
     private static final Address STAKER_REGISTRY_MAINNET_ADDRESS = new Address(Hex.decode("a0733306c2ee0c60224b0e59efeae8eee558c0ca1b39e7e5a14a575124549416"));
 
+    private static Logger logger;
+
     public static void main(String[] args) throws InvalidKeySpecException, InterruptedException {
 
         String signingAddressPrivateKey = null;
@@ -31,6 +34,7 @@ public class BlockSigner {
         String networkName = null;
         String ip = null;
         String port = null;
+        boolean verboseLoggingEnabled = false;
 
         if (args.length == 0 || (args.length == 1 && args[0].equals("-h"))) {
             printHelp();
@@ -41,7 +45,8 @@ public class BlockSigner {
             networkName = config.getConfigValue("network");
             ip = config.getConfigValue("ip");
             port = config.getConfigValue("port");
-        } else if (args.length >= 3 && args.length <= 5) {
+            verboseLoggingEnabled = Boolean.parseBoolean(config.getConfigValue("verboseLoggingEnabled"));
+        } else if (args.length >= 3 && args.length <= 6) {
             signingAddressPrivateKey = args[0];
             identityAddressString = args[1];
             networkName = args[2];
@@ -56,15 +61,19 @@ public class BlockSigner {
             } else {
                 port = "8545";
             }
+            if (args.length == 6) {
+                verboseLoggingEnabled = Boolean.parseBoolean(args[5]);
+            }
         } else {
             printHelp();
         }
 
+        logger = new Logger(verboseLoggingEnabled);
         stakerPrivateKey = getStakerPrivateKey(signingAddressPrivateKey);
-        rpc = new RPC(ip, port);
+        rpc = new RPC(ip, port, logger);
         coinbase = getCoinbaseAddress(networkName, identityAddressString);
 
-        System.out.println("Producing blocks now..");
+        logger.log("Producing blocks now..");
 
         while(true) {
             try {
@@ -73,8 +82,8 @@ public class BlockSigner {
                     createAndSendStakingBlock(nextSeed);
                 }
             } catch (Exception e) {
-                System.out.println("Block Signer caught exception " + e.getMessage());
-                System.out.println("Sleeping for 5 seconds, then resuming normal behaviour");
+                logger.log("Block Signer caught exception " + e.getMessage());
+                logger.log("Sleeping for 5 seconds, then resuming normal behaviour");
                 Thread.sleep(4000);
             }
 
@@ -89,12 +98,12 @@ public class BlockSigner {
             byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
             String result = rpc.submitSignature(signature, blockHashToSign);
             if (result.equals("true")) {
-                System.out.println("Block submitted successfully.");
+                logger.log("Block submitted successfully.");
             } else {
-                System.out.println("This staker must wait longer to submit this block.");
+                logger.log("This staker must wait longer to submit this block.");
             }
         } else {
-            System.out.println("Could not submit the POS block. Waiting for a POW block to be generated.");
+            logger.log("Could not submit the POS block. Waiting for a POW block to be generated.");
         }
     }
 
@@ -104,7 +113,7 @@ public class BlockSigner {
         if (oldSeed != null) {
             seed = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
         } else {
-            System.out.println("Unity fork has not been reached yet.");
+            logger.log("Unity fork has not been reached yet.");
             seed = null;
         }
         return seed;
@@ -152,7 +161,7 @@ public class BlockSigner {
             throw new IllegalArgumentException("Unsupported network name provided. Only amity and mainnet are supported.");
         }
 
-        System.out.println("Retrieving the coinbase address from the StakerRegistry at " + stakerRegistryAddress + "...");
+        logger.log("Retrieving the coinbase address from the StakerRegistry at " + stakerRegistryAddress + "...");
 
         byte[] callData = new ABIStreamingEncoder()
                 .encodeOneString("getCoinbaseAddress")
@@ -162,13 +171,13 @@ public class BlockSigner {
         Transaction callTx = new Transaction(stakerRegistryAddress, callData);
         byte[] returnValue = rpc.call(callTx);
         Address coinbase = new Address(new ABIDecoder(returnValue).decodeOneAddress().toByteArray());
-        System.out.println("Using coinbase address " + coinbase);
+        logger.log("Using coinbase address " + coinbase);
         return coinbase;
     }
 
     private static void printHelp(){
         System.out.println("Run block signer using one of the following commands:");
-        System.out.println("<signingAddressPrivateKey> <identityAddress> <networkName> <ip:127.0.0.1> <port:8545>");
+        System.out.println("<signingAddressPrivateKey> <identityAddress> <networkName> <ip:127.0.0.1> <port:8545> <verboseLoggingEnabled:false>");
         System.out.println("-config <configFilePath>");
         System.exit(0);
     }
