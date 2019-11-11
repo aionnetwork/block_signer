@@ -6,9 +6,14 @@ The signer is largely built on top of the RPC functionality provided by the [Nod
 
 # Launching the signer
 
-The signer can be used directly from the terminal by launching
+The signer can be used directly from the terminal either by passing in the arguments directly or by using a config file.
 
-`java -jar block_signer.jar <args>`
+
+### Option 1: Command line options
+
+**Usage:**
+
+`java -jar block_signer.jar <signingAddressPrivateKey> <identityAddress> <networkName> <ip> <port>`
 
 The signer takes the following arguments when launched:
 
@@ -18,9 +23,21 @@ The signer takes the following arguments when launched:
 
 3. **(required)** the network name. Only `amity` and `mainnet` are supported. 
 
-4. *(optional)*) the IP address of a Unity-enabled node accepting RPC requests. If this argument isn't provided, `127.0.0.1` is used as default.
+4. *(optional)* the IP address of a Unity-enabled node accepting RPC requests. If this argument isn't provided, `127.0.0.1` is used as default.
 
-5. *(optional)*) the port on which this node is accepting RPC requests. If this argument isn't provided, `8545` is used as default.
+5. *(optional)* the port on which this node is accepting RPC requests. If this argument isn't provided, `8545` is used as default.
+
+### Option 2: Config file
+**Usage:**
+
+`java -jar block_signer.jar -config <configFilePath>`
+
+The signer takes the following argument when launched:
+ - **(required)** path to the config file. 
+ 
+
+---
+Note that `java -jar block_signer.jar -h` will print the usage options.
 
 # Behaviour
 

@@ -25,77 +25,44 @@ public class BlockSigner {
     private static final Address STAKER_REGISTRY_MAINNET_ADDRESS = new Address(Hex.decode("a0733306c2ee0c60224b0e59efeae8eee558c0ca1b39e7e5a14a575124549416"));
 
     public static void main(String[] args) throws InvalidKeySpecException, InterruptedException {
-	  
-        if (args.length < 3) {
-            System.err.println("Usage: <signingAddressPrivateKey> <identityAddress> <network> <ip:127.0.0.1> <port:8545>");
-            return;
-        }
 
-        String privateKeyString = args[0];
+        String signingAddressPrivateKey = null;
+        String identityAddressString = null;
+        String networkName = null;
+        String ip = null;
+        String port = null;
 
-        if (null == privateKeyString) {
-            throw new IllegalArgumentException("null signing address private key provided");
-        }
-
-        if (privateKeyString.startsWith("0x")) {
-            privateKeyString = privateKeyString.substring(2);
-        }
-
-        byte[] privateKeyBytes = Hex.decode(privateKeyString);
-
-        if (privateKeyBytes.length == 64) {
-            privateKeyBytes = Arrays.copyOf(privateKeyBytes, 32);
-        }
-
-        if (privateKeyBytes.length != 32) {
-            throw new IllegalArgumentException("signing address private key is of unexpected length");
-        }
-
-        stakerPrivateKey = PrivateKey.fromBytes(privateKeyBytes);
-
-        String ip = "127.0.0.1", port = "8545";
-
-        if (args.length > 3) {
-            ip = args[3];
-        }
-
-        if (args.length > 4) {
-            port = args[4];
-        }
-
-        rpc = new RPC(ip, port);
-
-        String identityString = args[1];
-
-        if (null == identityString) {
-            throw new IllegalArgumentException("null identity address provided");
-        }
-	
-        if (identityString.startsWith("0x")) {
-            identityString = identityString.substring(2);
-        }
-
-        Address identityAddress = new Address(Hex.decode(identityString));
-
-        Address stakerRegistryAddress;
-        if (args[2].toLowerCase().equals("amity")) {
-            stakerRegistryAddress = STAKER_REGISTRY_AMITY_ADDRESS;
-        } else if (args[2].toLowerCase().equals("mainnet")) {
-            stakerRegistryAddress = STAKER_REGISTRY_MAINNET_ADDRESS;
+        if (args.length == 0 || (args.length == 1 && args[0].equals("-h"))) {
+            printHelp();
+        } else if (args.length == 2 && args[0].equals("-config")) {
+            Config config = Config.load(args[1]);
+            signingAddressPrivateKey = config.getConfigValue("signingAddressPrivateKey");
+            identityAddressString = config.getConfigValue("identityAddress");
+            networkName = config.getConfigValue("network");
+            ip = config.getConfigValue("ip");
+            port = config.getConfigValue("port");
+        } else if (args.length >= 3 && args.length <= 5) {
+            signingAddressPrivateKey = args[0];
+            identityAddressString = args[1];
+            networkName = args[2];
+            // optional arguments
+            if (args.length > 3) {
+                ip = args[3];
+            } else {
+                ip = "127.0.0.1";
+            }
+            if (args.length > 4) {
+                port = args[4];
+            } else {
+                port = "8545";
+            }
         } else {
-            throw new IllegalArgumentException("Unsupported network name provided. Only amity and mainnet are supported.");
+            printHelp();
         }
 
-        System.out.println("Retrieving coinbase from the Staker Registry at " + stakerRegistryAddress + "...");
-        byte[] callData = new ABIStreamingEncoder()
-                .encodeOneString("getCoinbaseAddress")
-                .encodeOneAddress(new avm.Address(identityAddress.getAddressBytes()))
-                .toBytes();
-
-        Transaction callTx = new Transaction(stakerRegistryAddress, callData);
-        byte[] returnValue = rpc.call(callTx);
-        coinbase = new Address(new ABIDecoder(returnValue).decodeOneAddress().toByteArray());
-        System.out.println("Using coinbase " + coinbase);
+        stakerPrivateKey = getStakerPrivateKey(signingAddressPrivateKey);
+        rpc = new RPC(ip, port);
+        coinbase = getCoinbaseAddress(networkName, identityAddressString);
 
         System.out.println("Producing blocks now..");
 
@@ -124,5 +91,68 @@ public class BlockSigner {
     private static byte[] getNextSeed() throws InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
         byte[] oldSeed = rpc.getSeed();
         return MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
+    }
+
+    private static PrivateKey getStakerPrivateKey(String privateKeyString) throws InvalidKeySpecException {
+        if (null == privateKeyString) {
+            throw new IllegalArgumentException("null signing address private key provided");
+        }
+
+        if (privateKeyString.startsWith("0x")) {
+            privateKeyString = privateKeyString.substring(2);
+        }
+
+        byte[] privateKeyBytes = Hex.decode(privateKeyString);
+
+        if (privateKeyBytes.length == 64) {
+            privateKeyBytes = Arrays.copyOf(privateKeyBytes, 32);
+        }
+
+        if (privateKeyBytes.length != 32) {
+            throw new IllegalArgumentException("Signing address private key is of unexpected length");
+        }
+
+        return PrivateKey.fromBytes(privateKeyBytes);
+    }
+
+    private static Address getCoinbaseAddress(String networkName, String identityAddressString) throws InterruptedException {
+        if (null == identityAddressString) {
+            throw new IllegalArgumentException("null identity address provided");
+        }
+
+        if (identityAddressString.startsWith("0x")) {
+            identityAddressString = identityAddressString.substring(2);
+        }
+
+        byte[] identityAddressBytes = Hex.decode(identityAddressString);
+
+        Address stakerRegistryAddress;
+        if (networkName.toLowerCase().equals("amity")) {
+            stakerRegistryAddress = STAKER_REGISTRY_AMITY_ADDRESS;
+        } else if (networkName.toLowerCase().equals("mainnet")) {
+            stakerRegistryAddress = STAKER_REGISTRY_MAINNET_ADDRESS;
+        } else {
+            throw new IllegalArgumentException("Unsupported network name provided. Only amity and mainnet are supported.");
+        }
+
+        System.out.println("Retrieving the coinbase address from the StakerRegistry at " + stakerRegistryAddress + "...");
+
+        byte[] callData = new ABIStreamingEncoder()
+                .encodeOneString("getCoinbaseAddress")
+                .encodeOneAddress(new avm.Address(identityAddressBytes))
+                .toBytes();
+
+        Transaction callTx = new Transaction(stakerRegistryAddress, callData);
+        byte[] returnValue = rpc.call(callTx);
+        Address coinbase = new Address(new ABIDecoder(returnValue).decodeOneAddress().toByteArray());
+        System.out.println("Using coinbase address " + coinbase);
+        return coinbase;
+    }
+
+    private static void printHelp(){
+        System.out.println("Run block signer using one of the following commands:");
+        System.out.println("<signingAddressPrivateKey> <identityAddress> <networkName> <ip:127.0.0.1> <port:8545>");
+        System.out.println("-config <configFilePath>");
+        System.exit(0);
     }
 }
