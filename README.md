@@ -14,11 +14,13 @@ The signer takes the following arguments when launched:
 
 1. **(required)** the private key of the signing address of the registered staker. 
 
-1. **(required)** the identity address of the staker. 
+2. **(required)** the identity address of the staker. 
 
-2. *(optional)*) the IP address of a Unity-enabled node accepting RPC requests. If this argument isn't provided, `127.0.0.1` is used as default.
+3. **(required)** the network name. Only `amity` and `mainnet` are supported. 
 
-3. *(optional)*) the port on which this node is accepting RPC requests. If this argument isn't provided, `8545` is used as default.
+4. *(optional)*) the IP address of a Unity-enabled node accepting RPC requests. If this argument isn't provided, `127.0.0.1` is used as default.
+
+5. *(optional)*) the port on which this node is accepting RPC requests. If this argument isn't provided, `8545` is used as default.
 
 # Behaviour
 

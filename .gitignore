@@ -1,0 +1,22 @@
+# Compiled class file
+*.class
+
+# JVM crash logs
+hs_err_pid*
+
+# Mac
+.DS_Store
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+
+# generated files
+/dist/
+out/
