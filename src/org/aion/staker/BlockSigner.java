@@ -1,12 +1,12 @@
 package org.aion.staker;
 
+import avm.Address;
 import main.MessageSigner;
 import org.aion.avm.userlib.abi.ABIDecoder;
 import org.aion.avm.userlib.abi.ABIStreamingEncoder;
-import org.aion.harness.kernel.Address;
-import org.aion.harness.kernel.PrivateKey;
-import org.aion.harness.kernel.Transaction;
-import org.aion.harness.main.RPC;
+import org.aion.staker.chain.RPC;
+import org.aion.staker.chain.Transaction;
+import org.aion.staker.utils.PrivateKey;
 import org.aion.util.conversions.Hex;
 
 import java.security.InvalidKeyException;
@@ -68,7 +68,10 @@ public class BlockSigner {
 
         while(true) {
             try {
-                createAndSendStakingBlock();
+                byte[] nextSeed = getNextSeed();
+                if(nextSeed != null) {
+                    createAndSendStakingBlock(nextSeed);
+                }
             } catch (Exception e) {
                 System.out.println("Block Signer caught exception " + e.getMessage());
                 System.out.println("Sleeping for 5 seconds, then resuming normal behaviour");
@@ -79,18 +82,32 @@ public class BlockSigner {
         }
 
     }
-    // Returns the seed of the newly created block
-    public static byte[] createAndSendStakingBlock() throws InterruptedException, InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        byte[] nextSeed = getNextSeed();
-        byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes(), coinbase);
-        byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
-        rpc.submitSignature(signature, blockHashToSign);
-        return nextSeed;
+
+    public static void createAndSendStakingBlock(byte[] nextSeed) throws InterruptedException, InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes(), coinbase.toByteArray());
+        if (blockHashToSign != null) {
+            byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
+            String result = rpc.submitSignature(signature, blockHashToSign);
+            if (result.equals("true")) {
+                System.out.println("Block submitted successfully.");
+            } else {
+                System.out.println("This staker must wait longer to submit this block.");
+            }
+        } else {
+            System.out.println("Could not submit the POS block. Waiting for a POW block to be generated.");
+        }
     }
 
     private static byte[] getNextSeed() throws InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
         byte[] oldSeed = rpc.getSeed();
-        return MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
+        byte[] seed;
+        if (oldSeed != null) {
+            seed = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
+        } else {
+            System.out.println("Unity fork has not been reached yet.");
+            seed = null;
+        }
+        return seed;
     }
 
     private static PrivateKey getStakerPrivateKey(String privateKeyString) throws InvalidKeySpecException {
