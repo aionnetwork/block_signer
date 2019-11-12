@@ -27,6 +27,9 @@ public class BlockSigner {
 
     private static Logger logger;
 
+    private static final long submitSeedSleepTimeMillis = 500;
+    private static final long submitSignatureSleepTimeMillis = 100;
+
     public static void main(String[] args) throws InvalidKeySpecException, InterruptedException {
 
         String signingAddressPrivateKey = null;
@@ -77,38 +80,36 @@ public class BlockSigner {
 
         while(true) {
             try {
-                byte[] nextSeed = getNextSeed();
-                if(nextSeed != null) {
-                    createAndSendStakingBlock(nextSeed);
+                byte[] oldSeed = rpc.getSeed();
+                byte[] nextSeed = getNextSeed(oldSeed);
+                byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes(), coinbase.toByteArray());
+                if (blockHashToSign != null) {
+                    byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
+                    boolean submissionResult;
+                    do {
+                        submissionResult = Boolean.parseBoolean(rpc.submitSignature(signature, blockHashToSign));
+                        if (submissionResult) {
+                            logger.log("Block submitted successfully. Sleeping for " + submitSeedSleepTimeMillis + " ms");
+                        } else {
+                            logger.log("This staker must wait longer to submit this block. Sleeping for " + submitSignatureSleepTimeMillis + " ms");
+                            Thread.sleep(submitSignatureSleepTimeMillis);
+                        }
+                    } while (!submissionResult && Arrays.equals(oldSeed, rpc.getSeed()));
+
+                } else {
+                    logger.log("Could not submit the POS block. Waiting for a POW block to be generated. Sleeping for " + submitSeedSleepTimeMillis + " ms");
                 }
             } catch (Exception e) {
                 logger.log("Block Signer caught exception " + e.getMessage());
-                logger.log("Sleeping for 5 seconds, then resuming normal behaviour");
-                Thread.sleep(4000);
+                logger.log("Sleeping for " + submitSeedSleepTimeMillis + " ms");
             }
 
-            Thread.sleep(1000);
+            Thread.sleep(submitSeedSleepTimeMillis);
         }
 
     }
 
-    public static void createAndSendStakingBlock(byte[] nextSeed) throws InterruptedException, InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes(), coinbase.toByteArray());
-        if (blockHashToSign != null) {
-            byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
-            String result = rpc.submitSignature(signature, blockHashToSign);
-            if (result.equals("true")) {
-                logger.log("Block submitted successfully.");
-            } else {
-                logger.log("This staker must wait longer to submit this block.");
-            }
-        } else {
-            logger.log("Could not submit the POS block. Waiting for a POW block to be generated.");
-        }
-    }
-
-    private static byte[] getNextSeed() throws InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
-        byte[] oldSeed = rpc.getSeed();
+    private static byte[] getNextSeed(byte[] oldSeed) throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
         byte[] seed;
         if (oldSeed != null) {
             seed = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
