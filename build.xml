@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project basedir="." default="clean_build" name="block_signer">
+
+    <property name="dir.local.workspace" value="."/>
+    <property name="dir.build.main" value="${dir.local.workspace}/build/main"/>
+    <property name="dir.src.main" value="${dir.local.workspace}/src"/>
+    <property name="dir.global.lib" value="${dir.local.workspace}/lib"/>
+    <property name="dir.dist" value="${dir.local.workspace}/dist"/>
+    <property name="junit.heap" value="32m"/>
+    <property name="junit.threads" value="4"/>
+
+    <target name="clean_build" depends="cleanmain">
+        <antcall target="buildmain">
+            <param name="compile.debug" value="${compile.debug}"/>
+        </antcall>
+    </target>
+
+    <target name="cleanmain">
+        <delete dir="${dir.build.main}"/>
+        <delete dir="${dir.dist}"/>
+    </target>
+
+    <target name="buildmain">
+        <echo message="Building ${ant.project.name}..."/>
+
+        <mkdir dir="${dir.build.main}"/>
+        <javac debug="true" debuglevel="source,lines,vars" includeantruntime="false"
+               srcdir="${dir.src.main}"
+               excludes="**/package-info.java"
+               destdir="${dir.build.main}" includes="**/*.java,module-info.java">
+            <classpath>
+                <pathelement location="${dir.global.lib}/commons-codec-1.11.jar"/>
+                <pathelement location="${dir.global.lib}/ed25519.jar"/>
+                <pathelement location="${dir.global.lib}/gson-2.8.5.jar"/>
+                <pathelement location="${dir.global.lib}/offline-signer.jar"/>
+                <pathelement location="${dir.global.lib}/modUtil.jar"/>
+                <pathelement location="${dir.global.lib}/org-aion-avm-userlib.jar"/>
+                <pathelement location="${dir.global.lib}/org-aion-avm-api.jar"/>
+            </classpath>
+        </javac>
+
+        <jar destfile="${dir.build.main}/${ant.project.name}.jar">
+            <fileset dir="${dir.build.main}"/>
+            <manifest>
+                <attribute name="Main-Class" value="org.aion.staker.BlockSigner"/>
+            </manifest>
+            <zipgroupfileset dir="${dir.global.lib}" includes="*.jar"/>
+        </jar>
+
+        <move includeemptydirs="false" todir="${dir.dist}">
+            <file file="${dir.build.main}/${ant.project.name}.jar"/>
+        </move>
+    </target>
+
+</project>
