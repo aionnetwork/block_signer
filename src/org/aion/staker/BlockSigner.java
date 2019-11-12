@@ -38,6 +38,7 @@ public class BlockSigner {
         String ip = null;
         String port = null;
         boolean verboseLoggingEnabled = false;
+        String coinbaseAddress = "";
 
         if (args.length == 0 || (args.length == 1 && args[0].equals("-h"))) {
             printHelp();
@@ -49,6 +50,7 @@ public class BlockSigner {
             ip = config.getConfigValue("ip");
             port = config.getConfigValue("port");
             verboseLoggingEnabled = Boolean.parseBoolean(config.getConfigValue("verboseLoggingEnabled"));
+            coinbaseAddress = config.getConfigValue("coinbaseAddress");
         } else if (args.length >= 3 && args.length <= 6) {
             signingAddressPrivateKey = args[0];
             identityAddressString = args[1];
@@ -74,7 +76,11 @@ public class BlockSigner {
         logger = new Logger(verboseLoggingEnabled);
         stakerPrivateKey = getStakerPrivateKey(signingAddressPrivateKey);
         rpc = new RPC(ip, port, logger);
-        coinbase = getCoinbaseAddress(networkName, identityAddressString);
+        if (coinbaseAddress.length() > 0) {
+            coinbase = getAddressFromString(coinbaseAddress);
+        } else {
+            coinbase = getCoinbaseAddress(networkName, identityAddressString);
+        }
 
         logger.log("Producing blocks now..");
 
@@ -147,12 +153,6 @@ public class BlockSigner {
             throw new IllegalArgumentException("null identity address provided");
         }
 
-        if (identityAddressString.startsWith("0x")) {
-            identityAddressString = identityAddressString.substring(2);
-        }
-
-        byte[] identityAddressBytes = Hex.decode(identityAddressString);
-
         Address stakerRegistryAddress;
         if (networkName.toLowerCase().equals("amity")) {
             stakerRegistryAddress = STAKER_REGISTRY_AMITY_ADDRESS;
@@ -166,7 +166,7 @@ public class BlockSigner {
 
         byte[] callData = new ABIStreamingEncoder()
                 .encodeOneString("getCoinbaseAddress")
-                .encodeOneAddress(new avm.Address(identityAddressBytes))
+                .encodeOneAddress(getAddressFromString(identityAddressString))
                 .toBytes();
 
         Transaction callTx = new Transaction(stakerRegistryAddress, callData);
@@ -181,5 +181,14 @@ public class BlockSigner {
         System.out.println("<signingAddressPrivateKey> <identityAddress> <networkName> <ip:127.0.0.1> <port:8545> <verboseLoggingEnabled:false>");
         System.out.println("-config <configFilePath>");
         System.exit(0);
+    }
+
+    private static Address getAddressFromString(String addressString){
+        if (addressString.startsWith("0x")) {
+            addressString = addressString.substring(2);
+        }
+
+        byte[] addressBytes = Hex.decode(addressString);
+        return new avm.Address(addressBytes);
     }
 }
