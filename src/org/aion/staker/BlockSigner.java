@@ -8,6 +8,7 @@ import org.aion.staker.chain.RPC;
 import org.aion.staker.chain.Transaction;
 import org.aion.staker.utils.Logger;
 import org.aion.staker.utils.PrivateKey;
+import org.aion.util.bytes.ByteUtil;
 import org.aion.util.conversions.Hex;
 
 import java.security.InvalidKeyException;
@@ -84,30 +85,32 @@ public class BlockSigner {
 
         logger.log("Producing blocks now..");
 
+        byte[] lastSubmittedHash = null;
         while(true) {
             try {
                 byte[] oldSeed = rpc.getSeed();
                 byte[] nextSeed = getNextSeed(oldSeed);
-                byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes(), coinbase.toByteArray());
-                if (blockHashToSign != null) {
-                    byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
-                    boolean submissionResult;
-                    do {
-                        submissionResult = Boolean.parseBoolean(rpc.submitSignature(signature, blockHashToSign));
-                        if (submissionResult) {
-                            logger.log("Block submitted successfully. Sleeping for " + submitSeedSleepTimeMillis + " ms");
-                        } else {
-                            logger.log("This staker must wait longer to submit this block. Sleeping for " + submitSignatureSleepTimeMillis + " ms");
-                            Thread.sleep(submitSignatureSleepTimeMillis);
-                        }
-                    } while (!submissionResult && Arrays.equals(oldSeed, rpc.getSeed()));
-
+                if (nextSeed == null) {
+                    logger.log("Could not submit POS blocks. A POW block is expected at the current block number. Sleeping for " + submitSeedSleepTimeMillis + " ms");
                 } else {
-                    logger.log("Could not submit the POS block. Waiting for a POW block to be generated. Sleeping for " + submitSeedSleepTimeMillis + " ms");
+                    byte[] blockHashToSign = rpc.submitSeed(nextSeed, stakerPrivateKey.getPublicKeyBytes(), coinbase.toByteArray());
+                    if (blockHashToSign != null) {
+                        if (!Arrays.equals(lastSubmittedHash, blockHashToSign)) {
+                            byte[] signature = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), blockHashToSign);
+                            boolean submissionResult = Boolean.parseBoolean(rpc.submitSignature(signature, blockHashToSign));
+                            if (submissionResult) {
+                                logger.log("Block submitted successfully. BlockMineHash: " + ByteUtil.toHexString(blockHashToSign));
+                                lastSubmittedHash = blockHashToSign;
+                            }
+                        } else {
+                            logger.log("Block already submitted, blockMineHash: " + ByteUtil.toHexString(blockHashToSign));
+                        }
+                    } else {
+                        logger.log("Could not submit the POS block. Waiting for a POW block to be generated. Sleeping for " + submitSeedSleepTimeMillis + " ms");
+                    }
                 }
             } catch (Exception e) {
-                logger.log("Block Signer caught exception " + e.getMessage());
-                logger.log("Sleeping for " + submitSeedSleepTimeMillis + " ms");
+                logger.log("Block Signer caught exception, " + Arrays.toString(e.getStackTrace()));
             }
 
             Thread.sleep(submitSeedSleepTimeMillis);
@@ -120,7 +123,6 @@ public class BlockSigner {
         if (oldSeed != null) {
             seed = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
         } else {
-            logger.log("Unity fork has not been reached yet.");
             seed = null;
         }
         return seed;

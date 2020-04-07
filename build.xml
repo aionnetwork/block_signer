@@ -8,6 +8,7 @@
     <property name="dir.dist" value="${dir.local.workspace}/dist"/>
     <property name="junit.heap" value="32m"/>
     <property name="junit.threads" value="4"/>
+    <property name="version" value="1.1"/>
 
     <target name="clean_build" depends="cleanmain">
         <antcall target="buildmain">
@@ -39,7 +40,7 @@
             </classpath>
         </javac>
 
-        <jar destfile="${dir.build.main}/${ant.project.name}.jar">
+        <jar destfile="${dir.build.main}/${ant.project.name}-${version}.jar">
             <fileset dir="${dir.build.main}"/>
             <manifest>
                 <attribute name="Main-Class" value="org.aion.staker.BlockSigner"/>
@@ -48,7 +49,7 @@
         </jar>
 
         <move includeemptydirs="false" todir="${dir.dist}">
-            <file file="${dir.build.main}/${ant.project.name}.jar"/>
+            <file file="${dir.build.main}/${ant.project.name}-${version}.jar"/>
         </move>
     </target>
 
