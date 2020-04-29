@@ -8,6 +8,7 @@ import org.aion.staker.chain.RPC;
 import org.aion.staker.chain.Transaction;
 import org.aion.staker.utils.Logger;
 import org.aion.staker.utils.PrivateKey;
+import org.aion.staker.vrf.VRF_Ed25519;
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.conversions.Hex;
 
@@ -120,8 +121,21 @@ public class BlockSigner {
 
     private static byte[] getNextSeed(byte[] oldSeed) throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
         byte[] seed;
+        int seedLength = 64;
+        int proofLength = 80;
         if (oldSeed != null) {
-            seed = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
+            if (oldSeed.length == seedLength) {
+                seed = MessageSigner.signMessageFromKeyBytes(stakerPrivateKey.getPrivateKeyBytes(), oldSeed);
+            } else if (oldSeed.length == (seedLength + 1) && oldSeed[seedLength] == 0) {
+                byte[] oldSeedHash = new byte[seedLength];
+                System.arraycopy(oldSeed, 0, oldSeedHash, 0, seedLength);
+                seed = VRF_Ed25519.generateProof(oldSeedHash, stakerPrivateKey.getKeyPairBytes());
+            } else if (oldSeed.length == proofLength) {
+                byte[] oldSeedHash = VRF_Ed25519.generateProofHash(oldSeed);
+                seed = VRF_Ed25519.generateProof(oldSeedHash, stakerPrivateKey.getKeyPairBytes());
+            } else {
+                return null;
+            }
         } else {
             seed = null;
         }

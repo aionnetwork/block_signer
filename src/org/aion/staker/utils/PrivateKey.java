@@ -1,5 +1,6 @@
 package org.aion.staker.utils;
 
+import org.aion.util.bytes.ByteUtil;
 import org.apache.commons.codec.binary.Hex;
 
 import java.security.spec.InvalidKeySpecException;
@@ -55,6 +56,10 @@ public final class PrivateKey {
      */
     public byte[] getPublicKeyBytes() {
         return copyByteArray(this.publicKeyBytes);
+    }
+
+    public byte[] getKeyPairBytes() {
+        return ByteUtil.merge(privateKeyBytes, publicKeyBytes);
     }
 
     private static byte[] copyByteArray(byte[] byteArray) {
